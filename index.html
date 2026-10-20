@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>سعراتي | تسجيل الدخول</title>
+<meta name="description" content="سعراتي: مساعد تغذية بالذكاء الاصطناعي. صوّر وجبتك واعرف سعراتها.">
+<style>
+:root{--bg:#fff;--tx:#000;--mut:#555;--bd:#000}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--tx:#fff;--mut:#aaa;--bd:#fff;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;max-width:420px;margin-inline:auto;padding:24px 16px}
+.logo{text-align:center;margin:20px 0}.logo b{font-size:30px;display:block}.logo i{font-size:12px;letter-spacing:5px;color:var(--mut);font-style:normal}
+.card{border:1.5px solid var(--bd);border-radius:6px;padding:16px}
+.tabs{display:flex;margin-bottom:14px}.tabs button{flex:1;padding:12px;border:0;background:none;color:var(--mut);font:inherit;border-bottom:2px solid transparent}
+.tabs button.on{color:var(--tx);font-weight:700;border-color:var(--tx)}
+input{width:100%;border:1.5px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:6px;padding:12px;font:inherit;font-size:16px;margin-bottom:10px;direction:ltr;text-align:right}
+button.p{width:100%;background:var(--tx);color:var(--bg);border:0;border-radius:6px;padding:13px;font:inherit;font-size:16px}
+button.p:disabled{opacity:.4}
+button.l{background:none;border:0;color:var(--mut);font:inherit;font-size:13px;margin-top:10px;text-decoration:underline;width:100%}
+.msg{font-size:14px;margin-top:12px;line-height:1.7;min-height:20px}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="logo"><b>سعراتي</b><i>SIRAATI</i></div>
+
+<div class="card" id="auth">
+ <div class="tabs"><button id="tl" class="on">دخول</button><button id="ts">حساب جديد</button></div>
+ <input id="em" type="email" placeholder="البريد الإلكتروني" autocomplete="email">
+ <input id="pw" type="password" placeholder="كلمة السر (6 أحرف على الأقل)" autocomplete="current-password">
+ <button class="p" id="go">دخول</button>
+ <button class="l" id="rs">نسيت كلمة السر؟</button>
+ <div class="msg" id="msg"></div>
+</div>
+
+<div class="card hide" id="app">
+ <p>مرحبًا بك 👋</p>
+ <p dir="ltr" id="who" style="color:var(--mut);margin:0 0 14px"></p>
+ <p class="msg">تم تسجيل دخولك بنجاح. هنا سيظهر تطبيق سعراتي في المرحلة القادمة.</p>
+ <button class="p" id="out">تسجيل الخروج</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
+<script>
+var sb=supabase.createClient('https://brasnqzlvwzqbporkuhj.supabase.co','sb_publishable_kLkVCAzlvADihyOUHB694w_fUG94wxK');
+var $=function(s){return document.querySelector(s)},mode='l';
+var ER={'Invalid login credentials':'البريد أو كلمة السر غير صحيحة.','Email not confirmed':'لم يتم تأكيد بريدك بعد. افحص رسالة التأكيد.','User already registered':'هذا البريد مسجّل مسبقًا. جرّب الدخول.'};
+function say(t,bad){$('#msg').textContent=t;$('#msg').style.fontWeight=bad?'700':'400'}
+function err(e){var m=e&&e.message||'';if(/Password should be/i.test(m))return 'كلمة السر قصيرة. استخدم 6 أحرف على الأقل.';if(/rate limit/i.test(m))return 'محاولات كثيرة، انتظر قليلًا ثم أعد المحاولة.';return ER[m]||('تعذّر تنفيذ الطلب: '+m)}
+function setMode(m){mode=m;$('#tl').classList.toggle('on',m==='l');$('#ts').classList.toggle('on',m==='s');$('#go').textContent=m==='l'?'دخول':'إنشاء الحساب';$('#pw').autocomplete=m==='l'?'current-password':'new-password';say('')}
+$('#tl').onclick=function(){setMode('l')};$('#ts').onclick=function(){setMode('s')};
+$('#go').onclick=async function(){
+ var e=$('#em').value.trim(),p=$('#pw').value,b=this;
+ if(!e||!p){say('اكتب البريد وكلمة السر.',1);return}
+ b.disabled=true;say('...');
+ try{
+  if(mode==='l'){var r=await sb.auth.signInWithPassword({email:e,password:p});if(r.error)say(err(r.error),1);else say('')}
+  else{var r2=await sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:location.href.split('#')[0]}});
+   if(r2.error)say(err(r2.error),1);
+   else if(!r2.data.session)say('تم إنشاء الحساب. افحص بريدك (وصندوق الرسائل غير المرغوبة) واضغط رابط التأكيد ثم ادخل.');
+   else say('')}
+ }catch(x){say('تعذّر الاتصال. تحقق من الإنترنت.',1)}
+ b.disabled=false};
+$('#rs').onclick=async function(){
+ var e=$('#em').value.trim();if(!e){say('اكتب بريدك أولًا.',1);return}
+ var r=await sb.auth.resetPasswordForEmail(e,{redirectTo:location.href.split('#')[0]});
+ say(r.error?err(r.error):'أرسلنا رابط إعادة تعيين كلمة السر إلى بريدك.',!!r.error)};
+$('#out').onclick=function(){sb.auth.signOut()};
+function view(s){var on=!!s;$('#auth').classList.toggle('hide',on);$('#app').classList.toggle('hide',!on);if(on)$('#who').textContent=s.user.email}
+sb.auth.getSession().then(function(r){view(r.data.session)});
+sb.auth.onAuthStateChange(function(_e,s){view(s)});
+</script>
+</body>
+</html>
